@@ -24,7 +24,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "OLED.h"
+#include "stm32f103xb.h"
+#include "stm32f1xx_hal.h"
 #include "stm32f1xx_hal_gpio.h"
+#include "stm32f1xx_hal_pwr.h"
 #include "stm32f1xx_hal_rtc.h"
 #include "stm32f1xx_hal_rtc_ex.h"
 #include <stdint.h>
@@ -50,7 +53,8 @@
 /* USER CODE BEGIN PV */
 RTC_TimeTypeDef time;
 RTC_DateTypeDef date;
-uint32_t CNT;
+RTC_AlarmTypeDef alarm;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -96,32 +100,36 @@ int main(void)
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
-
   OLED_ShowString(1, 7, "RTC");
   OLED_ShowString(2, 1, "Time: HH:MM:SS");
-  OLED_ShowString(3, 1, "Date: 20YY-MM-DD");
-  OLED_ShowString(4, 1, "CNT : xxxxxxxx");
+  OLED_ShowString(4, 1, "MCU Running");
+  
+  HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BCD);
+  OLED_ShowHexNum(2, 7, time.Hours, 2);
+  OLED_ShowHexNum(2, 10, time.Minutes, 2);
+  OLED_ShowHexNum(2, 13, time.Seconds, 2);
+
+  // 设定闹钟在当前时刻加5秒
+  alarm.Alarm = RTC_ALARM_A;
+  alarm.AlarmTime.Hours = time.Hours;
+  alarm.AlarmTime.Minutes = time.Minutes;
+  alarm.AlarmTime.Seconds = time.Seconds + 5;
+  HAL_RTC_SetAlarm_IT(&hrtc, &alarm, RTC_FORMAT_BCD);
+
+  HAL_Delay(500);
+  OLED_ShowString(4, 1, "           ");
+  // 进入Standby模式前，需手动清除WakeUp标志位、使能WakeUpPin、使能StandBy Debug（方便调试）
+  __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
+  HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);
+  HAL_DBGMCU_EnableDBGStandbyMode();
+  HAL_PWR_EnterSTANDBYMode();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_RTC_GetTime(&hrtc, &time, RTC_FORMAT_BCD);
-    HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BCD);
-    CNT = RTC_ReadTimeCounter(&hrtc);
-
-    OLED_ShowHexNum(2, 7, time.Hours, 2);
-    OLED_ShowHexNum(2, 10, time.Minutes, 2);
-    OLED_ShowHexNum(2, 13, time.Seconds, 2);
-    OLED_ShowHexNum(3, 9, date.Year, 2);
-    OLED_ShowHexNum(3, 12, date.Month, 2);
-    OLED_ShowHexNum(3, 15, date.Date, 2);
-    OLED_ShowHexNum(4, 7, CNT, 8);
-    
-    HAL_Delay(100);
     /* USER CODE END WHILE */
-
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
